@@ -29,7 +29,7 @@ body{
   background-size:cover;
 }
 
-/* === LICENSE BAR (ONLY ADDITION) === */
+/* LICENSE BAR */
 .license-bar{
   background:#0f172a;
   color:#e5e7eb;
@@ -102,7 +102,7 @@ header p{
   margin:10px 0 16px;
 }
 
-/* === Mountain motif divider === */
+/* Mountain motif divider */
 .mountain-divider{
   margin:18px 0 16px;
 }
@@ -226,12 +226,18 @@ button{
   width:100%;
   filter:drop-shadow(0 8px 20px rgba(0,0,0,.45));
 }
+
+.helper{
+  font-size:12px;
+  opacity:.9;
+  margin:-6px 0 12px;
+  line-height:1.35;
+}
 </style>
 </head>
 
 <body>
 
-<!-- LICENSE DISCLOSURE (ONLY CHANGE) -->
 <div class="license-bar">
   Marc – NYS Life, Health, FIA Licensed since 2001, LA #1010090 &nbsp;·&nbsp;
   Marylene – NYS Life & FIA Licensed since 2017, LA #1298496
@@ -274,15 +280,9 @@ button{
 
   <div class="event">
     <b>📍 Location</b> Valley Stream, NY 11580 (Address upon RSVP)<br>
-    <b>⏰ Time</b> 3:00 PM
-    <b>📅 Dates</b>
-    <ul>
-      <li>January 24, 2026</li>
-      <li>January 25, 2026</li>
-      <li>January 31, 2026</li>
-      <li>February 8, 2026</li>
-      <li>February 14, 2026</li>
-    </ul>
+    <b>⏰ Time</b> 3:00 PM<br>
+    <b>📅 Schedule</b> Presentations begin <b>Saturday, January 31, 2026</b> and <b>Sunday, February 1, 2026</b>, and repeat every <b>Saturday & Sunday</b> thereafter.<br>
+    <b>📝 RSVP</b> Select which upcoming Saturday or Sunday you would like to attend
     <b>🍽 Food & Refreshments Provided</b>
   </div>
 
@@ -316,15 +316,9 @@ button{
     <label>Location</label>
     <input name="location" required>
 
-    <label>Date Attending</label>
-    <select name="date" required>
-      <option disabled selected>Select Date</option>
-      <option>January 24, 2026</option>
-      <option>January 25, 2026</option>
-      <option>January 31, 2026</option>
-      <option>February 8, 2026</option>
-      <option>February 14, 2026</option>
-    </select>
+    <label>Which upcoming Saturday or Sunday would you like to attend?</label>
+    <select name="dateISO" id="dateSelect" required></select>
+    <div class="helper">This list auto-updates to show the next available weekend sessions.</div>
 
     <label>Guests</label>
     <input type="number" name="guests" min="0" value="0">
@@ -349,28 +343,117 @@ button{
 </div>
 
 <script>
+/* =========================
+   ROLLING WEEKEND CALENDAR
+   Starts: Sat Jan 31, 2026 & Sun Feb 1, 2026
+   Repeats: Every Saturday & Sunday thereafter
+========================= */
+
+const START_SAT = new Date(2026, 0, 31); // Saturday, Jan 31, 2026
+const START_SUN = new Date(2026, 1, 1);  // Sunday, Feb 1, 2026 (month is 0-based)
+const COUNT_OCCURRENCES = 12;            // number of upcoming sessions to show
+
+const dateSelect = document.getElementById("dateSelect");
+
+function isWeekendSession(d){
+  const day = d.getDay(); // 0=Sun, 6=Sat
+  return day === 6 || day === 0;
+}
+
+function stripTime(d){
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function formatLongWithWeekday(d){
+  return d.toLocaleDateString(undefined, { weekday:"long", year:"numeric", month:"long", day:"numeric" });
+}
+
+function nextEligibleWeekendOnOrAfter(base){
+  let d = stripTime(base);
+
+  // Ensure we never go earlier than the series start (Sat Jan 31, 2026)
+  if (d < START_SAT) d = stripTime(START_SAT);
+
+  // Move forward until Saturday or Sunday
+  while(!isWeekendSession(d)){
+    d.setDate(d.getDate() + 1);
+  }
+
+  // If we landed on a Sunday before the first series Sunday (Feb 1, 2026),
+  // jump to the first series Saturday.
+  if (d.getDay() === 0 && d < START_SUN) {
+    d = stripTime(START_SAT);
+  }
+
+  return d;
+}
+
+function populateWeekendDates(){
+  const today = new Date();
+  let d = nextEligibleWeekendOnOrAfter(today);
+
+  dateSelect.innerHTML = '<option disabled selected>Select Date</option>';
+
+  let added = 0;
+  while(added < COUNT_OCCURRENCES){
+    // Only include dates on/after the first series Saturday
+    if (d >= START_SAT && isWeekendSession(d)){
+      // Also ensure we don't include any Sunday before Feb 1, 2026
+      if (!(d.getDay() === 0 && d < START_SUN)){
+        const opt = document.createElement("option");
+        opt.value = d.toISOString();
+        opt.textContent = formatLongWithWeekday(d);
+        dateSelect.appendChild(opt);
+        added++;
+      }
+    }
+    d.setDate(d.getDate() + 1);
+    // Jump quickly through weekdays: if we're on Monday–Friday, skip to Saturday
+    if (d.getDay() >= 1 && d.getDay() <= 5){
+      // Move to Saturday of that week
+      d.setDate(d.getDate() + (6 - d.getDay()));
+    }
+  }
+}
+
+populateWeekendDates();
+
+/* =========================
+   SMS RSVP (unchanged)
+========================= */
 function smsRsvp(number){
   const f = document.forms[0];
+  const selected = document.getElementById("dateSelect");
+  const prettyDate = selected?.selectedOptions?.[0]?.textContent || "";
+
   const text =
 `RSVP – Open Mind • Open Doors
 Name: ${f.name.value}
 Location: ${f.location.value}
-Date: ${f.date.value}
+Date: ${prettyDate}
 Guests: ${f.guests.value}
 Referred By: ${f.referrer.value}`;
   window.location.href = `sms:${number}?body=` + encodeURIComponent(text);
 }
 
+/* =========================
+   EMAIL RSVP (TO Marc, CC Marylene)
+========================= */
 document.getElementById("rsvpForm").onsubmit = function(e){
   e.preventDefault();
   const d = new FormData(this);
+
+  const dateISO = d.get("dateISO");
+  const dateObj = dateISO ? new Date(dateISO) : null;
+  const datePretty = dateObj ? formatLongWithWeekday(dateObj) : "";
+
   const body =
 `RSVP – Open Mind • Open Doors
 
 Attendance: ${d.get("attendance")}
 Name: ${d.get("name")}
 Location: ${d.get("location")}
-Date: ${d.get("date")}
+Date: ${datePretty}
 Guests: ${d.get("guests")}
 Referred By: ${d.get("referrer")}
 
@@ -379,13 +462,10 @@ ${d.get("notes") || "None"}`;
 
   window.location.href =
     "mailto:mhmerritt@gmail.com?cc=mteopengco@gmail.com"
-    + "&subject=RSVP – Open Mind • Open Doors"
+    + "&subject=" + encodeURIComponent(`RSVP – Open Mind • Open Doors – ${datePretty || "Weekend Session"}`)
     + "&body=" + encodeURIComponent(body);
 };
 </script>
 
 </body>
 </html>
-
-
-
