@@ -90,7 +90,7 @@ header p{
   text-align:center;
   font-size:34px;
   font-weight:950;
-  letter-spacing:.06em;
+  letter-spacing:.02em;
   color:var(--gold);
   margin-top:10px;
 }
@@ -216,22 +216,34 @@ button{
   color:#fff;
 }
 
-.under-rsvp-logo{
-  text-align:center;
-  margin-top:16px;
-}
-
-.under-rsvp-logo img{
-  max-width:150px;
-  width:100%;
-  filter:drop-shadow(0 8px 20px rgba(0,0,0,.45));
-}
-
 .helper{
   font-size:12px;
   opacity:.9;
   margin:-6px 0 12px;
   line-height:1.35;
+}
+
+/* Logos (Open Mind + FEG stacked) */
+.under-rsvp-logo{
+  text-align:center;
+  margin-top:16px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+}
+
+.under-rsvp-logo .brand-logo{
+  width:160px;
+  max-width:70vw;
+  height:auto;
+  object-fit:contain;
+  filter:drop-shadow(0 8px 20px rgba(0,0,0,.45));
+}
+
+/* Optional: slightly smaller FEG logo; delete if you want same size */
+.under-rsvp-logo .feg-logo{
+  width:140px;
 }
 </style>
 </head>
@@ -333,8 +345,12 @@ button{
     <button class="btn-secondary" type="button" onclick="smsRsvp('16466452453')">Text Marc</button>
     <button class="btn-secondary" type="button" onclick="smsRsvp('16315791904')">Text Marylene</button>
 
+    <!-- LOGOS (Open Mind logo + FEG logo under it) -->
     <div class="under-rsvp-logo">
-      <img src="assets/logo.jpg" alt="Open Mind • Open Doors Logo">
+      <!-- Open Mind • Open Doors logo -->
+      <img class="brand-logo" src="assets/open-logo.jpeg" alt="Open Mind • Open Doors Logo">
+      <!-- FEG logo -->
+      <img class="brand-logo feg-logo" src="assets/feg-logo.jpg" alt="Freedom Equity Group Logo">
     </div>
   </form>
 </div>
@@ -349,8 +365,8 @@ button{
    Repeats: Every Saturday & Sunday thereafter
 ========================= */
 
-const START_SAT = new Date(2026, 0, 31); // Saturday, Jan 31, 2026
-const START_SUN = new Date(2026, 1, 1);  // Sunday, Feb 1, 2026 (month is 0-based)
+const START_SAT = new Date(2026, 0, 31); // Sat Jan 31, 2026
+const START_SUN = new Date(2026, 1, 1);  // Sun Feb 1, 2026 (month is 0-based)
 const COUNT_OCCURRENCES = 12;            // number of upcoming sessions to show
 
 const dateSelect = document.getElementById("dateSelect");
@@ -371,7 +387,7 @@ function formatLongWithWeekday(d){
 function nextEligibleWeekendOnOrAfter(base){
   let d = stripTime(base);
 
-  // Ensure we never go earlier than the series start (Sat Jan 31, 2026)
+  // Never earlier than series start Saturday
   if (d < START_SAT) d = stripTime(START_SAT);
 
   // Move forward until Saturday or Sunday
@@ -379,8 +395,7 @@ function nextEligibleWeekendOnOrAfter(base){
     d.setDate(d.getDate() + 1);
   }
 
-  // If we landed on a Sunday before the first series Sunday (Feb 1, 2026),
-  // jump to the first series Saturday.
+  // Don't show a Sunday before the first series Sunday
   if (d.getDay() === 0 && d < START_SUN) {
     d = stripTime(START_SAT);
   }
@@ -396,9 +411,7 @@ function populateWeekendDates(){
 
   let added = 0;
   while(added < COUNT_OCCURRENCES){
-    // Only include dates on/after the first series Saturday
     if (d >= START_SAT && isWeekendSession(d)){
-      // Also ensure we don't include any Sunday before Feb 1, 2026
       if (!(d.getDay() === 0 && d < START_SUN)){
         const opt = document.createElement("option");
         opt.value = d.toISOString();
@@ -408,9 +421,9 @@ function populateWeekendDates(){
       }
     }
     d.setDate(d.getDate() + 1);
-    // Jump quickly through weekdays: if we're on Monday–Friday, skip to Saturday
+
+    // If we land on Mon–Fri, jump to Saturday quickly
     if (d.getDay() >= 1 && d.getDay() <= 5){
-      // Move to Saturday of that week
       d.setDate(d.getDate() + (6 - d.getDay()));
     }
   }
@@ -419,7 +432,7 @@ function populateWeekendDates(){
 populateWeekendDates();
 
 /* =========================
-   SMS RSVP (unchanged)
+   SMS RSVP
 ========================= */
 function smsRsvp(number){
   const f = document.forms[0];
